@@ -1,0 +1,19 @@
+[project]
+name = "hisaab"
+version = "0.1.0"
+description = "Accounting and business insights for Nepal wholesalers"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.121,<1", "uvicorn[standard]>=0.34,<1",
+  "sqlalchemy>=2.0.40,<2.1", "psycopg[binary]>=3.2,<4",
+  "pydantic-settings>=2.8,<3", "httpx>=0.28,<1",
+  "nepali-datetime==1.0.8.5", "cryptography>=44,<47",
+  "reportlab>=4.3,<6", "alembic>=1.15,<2", "uharfbuzz>=0.45,<1",
+]
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<10", "pytest-cov>=6,<8", "pypdf>=5,<7"]
+[tool.setuptools.packages.find]
+include = ["api*"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

@@ -1,0 +1,49 @@
+services:
+  database:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: hisaab
+      POSTGRES_USER: hisaab
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hisaab-local-only}
+    ports:
+      - "127.0.0.1:55438:5432"
+    volumes:
+      - hisaab_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hisaab -d hisaab"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  api:
+    image: hisaab-api
+    build: .
+    environment: &app_environment
+      DATABASE_URL: postgresql+psycopg://hisaab:${POSTGRES_PASSWORD:-hisaab-local-only}@database:5432/hisaab
+      DEMO_MODE: ${DEMO_MODE:-false}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      TAX_BILLING_ENABLED: "false"
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_DAILY_LIMIT: ${AI_DAILY_LIMIT:-25}
+    ports:
+      - "127.0.0.1:8008:8008"
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://127.0.0.1:8008/api/v1/health', timeout=3).raise_for_status()"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+  worker:
+    image: hisaab-api
+    profiles: ["operations"]
+    command: ["python", "-m", "api.worker"]
+    environment: *app_environment
+    depends_on:
+      database:
+        condition: service_healthy
+volumes:
+  hisaab_data:

@@ -1,0 +1,41 @@
+name: Verify Hisaab
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: hisaab
+          POSTGRES_USER: hisaab
+          POSTGRES_PASSWORD: ci-local-password
+        ports: ['55438:5432']
+        options: >-
+          --health-cmd "pg_isready -U hisaab" --health-interval 3s
+          --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql+psycopg://hisaab:ci-local-password@127.0.0.1:55438/hisaab
+      HISAAB_TEST_DATABASE_URL: postgresql+psycopg://hisaab:ci-local-password@127.0.0.1:55438/hisaab
+      DEMO_MODE: 'true'
+      COOKIE_SECURE: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm }
+      - run: pip install -r requirements.lock.txt
+      - run: npm ci
+      - run: pytest -q
+      - run: alembic upgrade head
+      - run: uvicorn api.main:app --host 127.0.0.1 --port 8008 > api.log 2>&1 &
+      - run: python scripts/wait_ready.py
+      - run: npm run api:types && git diff --exit-code -- web/generated/api.ts openapi.json
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - run: python scripts/check_books.py
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: test-artifacts, path: 'test-results/' }
