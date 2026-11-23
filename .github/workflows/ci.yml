@@ -27,7 +27,7 @@ jobs:
         with: { node-version: '22', cache: npm }
       - run: pip install -r requirements.lock.txt
       - run: npm ci
-      - run: pytest -q
+      - run: python -m pytest -q
       - run: alembic upgrade head
       - run: uvicorn api.main:app --host 127.0.0.1 --port 8008 > api.log 2>&1 &
       - run: python scripts/wait_ready.py
